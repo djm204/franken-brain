@@ -202,6 +202,18 @@ describe('WorkingMemoryStore — prune (preservation rules)', () => {
     expect(snap.some((t) => t.id === 'TOOL')).toBe(true);
   });
 
+  it('does not call strategy when all turns are preserved (no candidates)', async () => {
+    const strategy: ICompressionStrategy = { compress: vi.fn() };
+    const store = new WorkingMemoryStore(strategy);
+    // Both turns are pinned — partitionForPruning yields zero candidates
+    store.push(makeTurn({ id: 'A', tokenCount: 50, pinned: true }));
+    store.push(makeTurn({ id: 'B', tokenCount: 40, pinned: true }));
+
+    await store.prune(new TokenBudget(100, 0));
+
+    expect(strategy.compress).not.toHaveBeenCalled();
+  });
+
   it('passes only non-preserved (candidate) turns to the compression strategy', async () => {
     const summary = makeTurn({ id: 'SUMMARY', tokenCount: 1 });
     const strategy: ICompressionStrategy = {
