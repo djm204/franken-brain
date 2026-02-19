@@ -44,4 +44,12 @@ describe('PiiGuard', () => {
     await guard.check({ safe: 'data' });
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('emits event but does NOT throw in redact mode', async () => {
+    const guard = new PiiGuard(makeScanner({ clean: false, mode: 'redact', fields: ['name'] }));
+    const listener = vi.fn();
+    guard.on('pii-detected', listener);
+    await expect(guard.check({ name: 'Alice' })).resolves.not.toThrow();
+    expect(listener).toHaveBeenCalledOnce();
+  });
 });
