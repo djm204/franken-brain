@@ -18,3 +18,6 @@ export type { IEpisodicStore } from './episodic/index.js';
 
 export { SemanticMemoryStore } from './semantic/index.js';
 export type { ISemanticStore, MetadataFilter, IChromaClient, IEmbeddingProvider } from './semantic/index.js';
+
+export { TruncationStrategy, LlmSummarisationStrategy, EpisodicLessonExtractor } from './compression/index.js';
+export type { ILlmClient } from './compression/index.js';

@@ -60,4 +60,11 @@ describe('TruncationStrategy', () => {
     expect(result.droppedCount).toBe(0);
     expect(result.summary.tokenCount).toBe(0);
   });
+
+  it('handles all-pinned candidates (droppable is empty)', async () => {
+    const allPinned = [t(40, { pinned: true }), t(40, { pinned: true })];
+    const result = await strategy.compress(allPinned, 30);
+    // Nothing droppable — dropped count is 0
+    expect(result.droppedCount).toBe(0);
+  });
 });
