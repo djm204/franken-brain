@@ -24,3 +24,6 @@ export type { ILlmClient } from './compression/index.js';
 
 export { MemoryOrchestrator } from './orchestrator/index.js';
 export type { OrchestratorDeps, AgentContext } from './orchestrator/index.js';
+
+export { PiiGuard, PiiDetectedError, PiiGuardedEpisodicStore, PiiGuardedSemanticStore } from './pii/index.js';
+export type { IPiiScanner, ScanResult, ScanMode, PiiDetectedEvent } from './pii/index.js';
