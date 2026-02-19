@@ -12,3 +12,6 @@ export { TokenBudget, generateId, parseMemoryEntry, parseMemoryStatus } from './
 
 export { WorkingMemoryStore } from './working/index.js';
 export type { ICompressionStrategy, CompressionResult } from './working/index.js';
+
+export { EpisodicMemoryStore } from './episodic/index.js';
+export type { IEpisodicStore } from './episodic/index.js';
