@@ -15,3 +15,6 @@ export type { ICompressionStrategy, CompressionResult } from './working/index.js
 
 export { EpisodicMemoryStore } from './episodic/index.js';
 export type { IEpisodicStore } from './episodic/index.js';
+
+export { SemanticMemoryStore } from './semantic/index.js';
+export type { ISemanticStore, MetadataFilter, IChromaClient, IEmbeddingProvider } from './semantic/index.js';
