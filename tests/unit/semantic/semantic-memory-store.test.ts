@@ -170,6 +170,24 @@ describe('SemanticMemoryStore — search()', () => {
     expect(embedder.embed).toHaveBeenCalledWith(['find me']);
   });
 
+  it('returns [] when the embedder returns an empty array (defensive guard)', async () => {
+    const embedder: IEmbeddingProvider = { embed: vi.fn(async () => []) };
+    const s = makeStore(makeFakeCollection(), embedder);
+    const results = await s.search('anything', 3);
+    expect(results).toEqual([]);
+  });
+
+  it('returns [] when the collection query result has no rows (empty ids[0])', async () => {
+    const emptyCollection: IChromaCollection = {
+      upsert: vi.fn(async () => {}),
+      query: vi.fn(async () => ({ ids: [], documents: [], metadatas: [], distances: [] })),
+      delete: vi.fn(async () => {}),
+    };
+    const s = makeStore(emptyCollection);
+    const results = await s.search('anything', 3);
+    expect(results).toEqual([]);
+  });
+
   it('filters by projectId when a MetadataFilter is provided', async () => {
     const results = await store.search('query', 10, { projectId: 'proj-a' });
     expect(results.every((r) => r.projectId === 'proj-a')).toBe(true);
@@ -182,6 +200,23 @@ describe('SemanticMemoryStore — search()', () => {
       expect(r.type).toBe('semantic');
       expect(typeof r.content).toBe('string');
     }
+  });
+
+  it('skips rows where ChromaDB returns null document or metadata', async () => {
+    const nullRowCollection: IChromaCollection = {
+      upsert: vi.fn(async () => {}),
+      query: vi.fn(async (): Promise<QueryResult> => ({
+        ids: [['id-valid', 'id-null-doc']],
+        documents: [['valid content', null]],
+        metadatas: [[{ type: 'semantic', projectId: 'p', status: 'success', createdAt: 0, source: 'x' }, null]],
+        distances: [[0.1, 0.2]],
+      })),
+      delete: vi.fn(async () => {}),
+    };
+    const s = makeStore(nullRowCollection);
+    const results = await s.search('anything', 5);
+    expect(results).toHaveLength(1);
+    expect(results[0]?.id).toBe('id-valid');
   });
 });
 
