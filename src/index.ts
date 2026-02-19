@@ -9,3 +9,6 @@ export type {
 } from './types/index.js';
 
 export { TokenBudget, generateId, parseMemoryEntry, parseMemoryStatus } from './types/index.js';
+
+export { WorkingMemoryStore } from './working/index.js';
+export type { ICompressionStrategy, CompressionResult } from './working/index.js';
