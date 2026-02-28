@@ -39,12 +39,29 @@ describe('WorkingMemoryStore — push / snapshot / clear', () => {
     expect(store.snapshot()).toEqual([]);
   });
 
-  it('push() appends a turn', () => {
+  it('push() appends a turn and increments token count', () => {
     const store = makeStore();
-    const turn = makeTurn();
+    const turn = makeTurn({ tokenCount: 42 });
     store.push(turn);
     expect(store.snapshot()).toHaveLength(1);
     expect(store.snapshot()[0]).toEqual(turn);
+    expect(store.getTokenCount()).toBe(42);
+  });
+
+  it('push() — multiple turns accumulate token count', () => {
+    const store = makeStore();
+    store.push(makeTurn({ id: 'A', tokenCount: 10 }));
+    store.push(makeTurn({ id: 'B', tokenCount: 20 }));
+    store.push(makeTurn({ id: 'C', tokenCount: 30 }));
+    expect(store.getTokenCount()).toBe(60);
+  });
+
+  it('snapshot() returns shallow copy — mutating returned array does not affect store', () => {
+    const store = makeStore();
+    store.push(makeTurn({ id: 'A' }));
+    const snap = store.snapshot();
+    snap.pop();
+    expect(store.snapshot()).toHaveLength(1);
   });
 
   it('snapshot() returns turns in insertion order', () => {
@@ -59,11 +76,20 @@ describe('WorkingMemoryStore — push / snapshot / clear', () => {
     expect(snap.map((t) => t.content)).toEqual(['first', 'second', 'third']);
   });
 
-  it('clear() empties the store', () => {
+  it('clear() resets turns and token count to zero', () => {
     const store = makeStore();
-    store.push(makeTurn());
+    store.push(makeTurn({ tokenCount: 50 }));
     store.clear();
     expect(store.snapshot()).toEqual([]);
+    expect(store.getTokenCount()).toBe(0);
+  });
+
+  it('clear() is idempotent on empty store', () => {
+    const store = makeStore();
+    store.clear();
+    store.clear();
+    expect(store.snapshot()).toEqual([]);
+    expect(store.getTokenCount()).toBe(0);
   });
 });
 
@@ -231,5 +257,37 @@ describe('WorkingMemoryStore — prune (preservation rules)', () => {
     const passedTurns = compressCall?.[0] ?? [];
     expect(passedTurns.every((t: WorkingTurn) => t.id !== 'PINNED')).toBe(true);
     expect(passedTurns.some((t: WorkingTurn) => t.id === 'CAND')).toBe(true);
+  });
+
+  it('passes budget.remaining() to strategy, not original budget', async () => {
+    const summary = makeTurn({ id: 'SUMMARY', tokenCount: 1 });
+    const strategy: ICompressionStrategy = {
+      compress: vi.fn().mockResolvedValue({ summary, droppedCount: 1 }),
+    };
+    const store = new WorkingMemoryStore(strategy);
+    store.push(makeTurn({ id: 'A', tokenCount: 86 })); // above 85% of 100
+
+    const budget = new TokenBudget(100, 30); // remaining = 70
+    await store.prune(budget);
+
+    const passedBudget = vi.mocked(strategy.compress).mock.calls[0]?.[1];
+    expect(passedBudget).toBe(70);
+  });
+
+  it('preserved turns remain in order, summary appended last', async () => {
+    const summary = makeTurn({ id: 'SUMMARY', tokenCount: 1, content: 'summary' });
+    const strategy: ICompressionStrategy = {
+      compress: vi.fn().mockResolvedValue({ summary, droppedCount: 1 }),
+    };
+    const store = new WorkingMemoryStore(strategy);
+    store.push(makeTurn({ id: 'P1', tokenCount: 20, pinned: true }));
+    store.push(makeTurn({ id: 'CAND', tokenCount: 50 }));
+    store.push(makeTurn({ id: 'P2', tokenCount: 20, pinned: true }));
+
+    await store.prune(new TokenBudget(100, 0));
+
+    const snap = store.snapshot();
+    const ids = snap.map((turn) => turn.id);
+    expect(ids).toEqual(['P1', 'P2', 'SUMMARY']);
   });
 });
