@@ -31,6 +31,24 @@ describe('partitionForPruning', () => {
     expect(candidates.map((x) => x.id)).toEqual(['B', 'C']);
   });
 
+  it('multiple pinned turns are all preserved', () => {
+    const turns = [
+      t('A', { pinned: true }),
+      t('B', { pinned: true }),
+      t('C'),
+      t('D', { pinned: true }),
+    ];
+    const { preserved, candidates } = partitionForPruning(turns);
+    expect(preserved.map((x) => x.id)).toEqual(['A', 'B', 'D']);
+    expect(candidates.map((x) => x.id)).toEqual(['C']);
+  });
+
+  it('no plan turns means no plan preserved', () => {
+    const turns = [t('A', { role: 'user' }), t('B', { role: 'assistant', content: 'not a plan' })];
+    const { preserved } = partitionForPruning(turns);
+    expect(preserved).toHaveLength(0);
+  });
+
   it('preserves only the MOST RECENT Plan turn, not earlier ones', () => {
     const turns = [
       t('PLAN1', { role: 'assistant', content: '[Plan] first' }),
@@ -42,6 +60,12 @@ describe('partitionForPruning', () => {
     expect(preserved.map((x) => x.id)).toContain('PLAN2');
     expect(preserved.map((x) => x.id)).not.toContain('PLAN1');
     expect(candidates.map((x) => x.id)).toContain('PLAN1');
+  });
+
+  it('no tool turns means no tool preserved', () => {
+    const turns = [t('A', { role: 'user' }), t('B', { role: 'assistant' })];
+    const { preserved } = partitionForPruning(turns);
+    expect(preserved).toHaveLength(0);
   });
 
   it('preserves only the MOST RECENT tool turn', () => {
@@ -63,6 +87,20 @@ describe('partitionForPruning', () => {
     expect(candidates).toHaveLength(0);
   });
 
+  it('combined — pinned + plan + tool all preserved together', () => {
+    const turns = [
+      t('PINNED', { pinned: true }),
+      t('CAND1'),
+      t('PLAN', { role: 'assistant', content: '[Plan] do stuff' }),
+      t('CAND2'),
+      t('TOOL', { role: 'tool' }),
+      t('CAND3'),
+    ];
+    const { preserved, candidates } = partitionForPruning(turns);
+    expect(preserved.map((x) => x.id)).toEqual(['PINNED', 'PLAN', 'TOOL']);
+    expect(candidates.map((x) => x.id)).toEqual(['CAND1', 'CAND2', 'CAND3']);
+  });
+
   it('preserved turns maintain original insertion order', () => {
     const turns = [
       t('A', { pinned: true }),
@@ -72,6 +110,17 @@ describe('partitionForPruning', () => {
     ];
     const { preserved } = partitionForPruning(turns);
     expect(preserved.map((x) => x.id)).toEqual(['A', 'C']);
+  });
+
+  it('candidates maintain original relative order', () => {
+    const turns = [
+      t('A'),
+      t('B', { pinned: true }),
+      t('C'),
+      t('D'),
+    ];
+    const { candidates } = partitionForPruning(turns);
+    expect(candidates.map((x) => x.id)).toEqual(['A', 'C', 'D']);
   });
 
   it('returns empty arrays for empty input', () => {
