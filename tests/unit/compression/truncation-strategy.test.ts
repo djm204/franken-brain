@@ -55,6 +55,37 @@ describe('TruncationStrategy', () => {
     expect(result.droppedCount).toBeGreaterThan(0);
   });
 
+  it('budget calculation subtracts pinned tokens before evaluating droppable', async () => {
+    // budget = 100, pinned uses 60, so only 40 left for droppable
+    const pinned = t(60, { pinned: true });
+    const fits = t(30); // 30 <= 40, fits
+    const doesntFit = t(20); // 30 + 20 = 50 > 40, doesn't fit
+    const result = await strategy.compress([doesntFit, fits, pinned], 100);
+    // doesntFit (oldest) is dropped; fits (newest droppable) is kept
+    expect(result.droppedCount).toBe(1);
+  });
+
+  it('summary turn has role "assistant", status "compressed", type "working"', async () => {
+    const result = await strategy.compress([t(50), t(50)], 60);
+    expect(result.summary.role).toBe('assistant');
+    expect(result.summary.status).toBe('compressed');
+    expect(result.summary.type).toBe('working');
+  });
+
+  it('token approximation: summary tokenCount ≈ ceil(text.length / 4) when truncated', async () => {
+    const result = await strategy.compress([t(50), t(50)], 30);
+    expect(result.droppedCount).toBeGreaterThan(0);
+    const expected = Math.ceil(result.summary.content.length / 4);
+    expect(result.summary.tokenCount).toBe(expected);
+  });
+
+  it('single turn that exceeds budget — dropped, summary is truncation message', async () => {
+    const result = await strategy.compress([t(200)], 50);
+    expect(result.droppedCount).toBe(1);
+    expect(result.summary.content).toMatch(/Truncated/);
+    expect(result.summary.content).toMatch(/1/);
+  });
+
   it('returns droppedCount 0 and an empty-summary when given zero turns', async () => {
     const result = await strategy.compress([], 100);
     expect(result.droppedCount).toBe(0);
